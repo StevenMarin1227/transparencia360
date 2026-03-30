@@ -1,26 +1,26 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 
 function App() {
   const [entidad, setEntidad] = useState("");
 
-  useEffect(() => {
-    const entidadGuardada = localStorage.getItem("entidad");
-    if (entidadGuardada) {
-      setEntidad(entidadGuardada);
-    }
-  }, []);
+  const handleLogin = (ent) => {
+    localStorage.setItem("entidad", ent);
+    setEntidad(ent);
+  };
 
   const cerrarSesion = () => {
     localStorage.removeItem("entidad");
     setEntidad("");
   };
 
+  // 🔥 SIEMPRE LOGIN SI NO HAY ENTIDAD
   if (!entidad) {
-    return <Login onLogin={setEntidad} />;
+    return <Login onLogin={handleLogin} />;
   }
 
+  // 🔥 SOLO DASHBOARD SI YA HAY ENTIDAD
   return (
     <Dashboard
       entidad={entidad}

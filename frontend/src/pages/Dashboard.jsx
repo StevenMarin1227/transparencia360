@@ -4,7 +4,7 @@ import Navbar from "../components/layout/Navbar";
 import Table from "../components/ui/Table";
 import { obtenerContratos } from "../services/api";
 
-export default function Dashboard({ entidad }) {
+export default function Dashboard({ entidad, onLogout }) {
   const [contratos, setContratos] = useState([]);
   const [fecha, setFecha] = useState("");
   const [loading, setLoading] = useState(true);
@@ -30,13 +30,22 @@ export default function Dashboard({ entidad }) {
 
   const cargarDatos = async () => {
     try {
+      setLoading(true);
+
       const res = await obtenerContratos(entidad);
 
-      setContratos(res.data.data || []);
-      setFecha(res.data.fechaActualizacion);
+      console.log("RESPUESTA BACKEND:", res);
+
+      setContratos(res.data?.data || []);
+      setFecha(res.data?.fechaActualizacion || null);
+
     } catch (error) {
-      console.error("Error cargando datos:", error);
+      console.error("❌ ERROR BACKEND:", error);
+
+      // 🔥 MUY IMPORTANTE
+      setContratos([]);
     } finally {
+      // 🔥 SIEMPRE SE EJECUTA
       setLoading(false);
     }
   };
@@ -112,10 +121,11 @@ export default function Dashboard({ entidad }) {
 
       <div className="flex-grow-1 bg-light">
 
-        {/* 🔥 AQUÍ VA LA ENTIDAD */}
+        {/*AQUÍ VA LA ENTIDAD */}
         <Navbar
           fecha={fecha}
           entidad={entidad}
+          onLogout={onLogout}
           toggleSidebar={() => setSidebarVisible(!sidebarVisible)}
         />
 
@@ -219,9 +229,8 @@ export default function Dashboard({ entidad }) {
                 {paginas.map((num, index) => (
                   <li
                     key={index}
-                    className={`page-item ${
-                      paginaActual === num ? "active" : ""
-                    } ${num === "..." ? "disabled" : ""}`}
+                    className={`page-item ${paginaActual === num ? "active" : ""
+                      } ${num === "..." ? "disabled" : ""}`}
                   >
                     <button
                       className="page-link"
@@ -235,9 +244,8 @@ export default function Dashboard({ entidad }) {
                 ))}
 
                 <li
-                  className={`page-item ${
-                    paginaActual === totalPaginas ? "disabled" : ""
-                  }`}
+                  className={`page-item ${paginaActual === totalPaginas ? "disabled" : ""
+                    }`}
                 >
                   <button
                     className="page-link"

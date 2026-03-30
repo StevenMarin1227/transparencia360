@@ -12,9 +12,12 @@ export default function Login({ onLogin }) {
   const cargarEntidades = async () => {
     try {
       const res = await obtenerEntidades();
-      setEntidades(res.data);
+
+      console.log("ENTIDADES BACKEND:", res.data); // 🔥 DEBUG
+
+      setEntidades(res.data || []);
     } catch (error) {
-      console.error("Error cargando entidades:", error);
+      console.error("ERROR CARGANDO ENTIDADES:", error);
     }
   };
 
@@ -26,19 +29,15 @@ export default function Login({ onLogin }) {
       return;
     }
 
-    localStorage.setItem("entidad", entidad);
     onLogin(entidad);
   };
 
   return (
     <div className="d-flex justify-content-center align-items-center vh-100 bg-light">
-
       <div className="card p-4 shadow" style={{ width: "350px" }}>
-
         <h4 className="mb-3 text-center">Transparencia360</h4>
 
         <form onSubmit={handleSubmit}>
-
           <div className="mb-3">
             <label className="form-label">Selecciona entidad</label>
 
@@ -49,21 +48,23 @@ export default function Login({ onLogin }) {
             >
               <option value="">-- Seleccionar --</option>
 
-              {entidades.map((ent, i) => (
-                <option key={i}>{ent}</option>
-              ))}
-
+              {entidades.length > 0 ? (
+                entidades.map((ent, i) => (
+                  <option key={i} value={ent}>
+                    {ent}
+                  </option>
+                ))
+              ) : (
+                <option disabled>Cargando entidades...</option>
+              )}
             </select>
           </div>
 
           <button className="btn btn-success w-100">
             Ingresar
           </button>
-
         </form>
-
       </div>
-
     </div>
   );
 }
