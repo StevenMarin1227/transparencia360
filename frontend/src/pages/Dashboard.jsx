@@ -4,7 +4,7 @@ import Navbar from "../components/layout/Navbar";
 import Table from "../components/ui/Table";
 import { obtenerContratos } from "../services/api";
 
-export default function Dashboard() {
+export default function Dashboard({ entidad }) {
   const [contratos, setContratos] = useState([]);
   const [fecha, setFecha] = useState("");
   const [loading, setLoading] = useState(true);
@@ -17,6 +17,7 @@ export default function Dashboard() {
   const [paginaActual, setPaginaActual] = useState(1);
   const registrosPorPagina = 10;
 
+  // 🔥 IMPORTANTE: depende de entidad
   useEffect(() => {
     cargarDatos();
 
@@ -25,28 +26,29 @@ export default function Dashboard() {
     }, 60000);
 
     return () => clearInterval(intervalo);
-  }, []);
+  }, [entidad]);
 
   const cargarDatos = async () => {
     try {
-      const res = await obtenerContratos();
-      setContratos(res.data.data);
+      const res = await obtenerContratos(entidad);
+
+      setContratos(res.data.data || []);
       setFecha(res.data.fechaActualizacion);
     } catch (error) {
-      console.error(error);
+      console.error("Error cargando datos:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  // 🔥 FILTROS
+  // 🔥 FILTROS (más seguro)
   const contratosFiltrados = contratos.filter((c) => {
     const texto = filtroTexto.toLowerCase();
 
     return (
-      (c.entidad.toLowerCase().includes(texto) ||
-        c.contrato.toLowerCase().includes(texto) ||
-        c.contratista.toLowerCase().includes(texto)) &&
+      ((c.entidad || "").toLowerCase().includes(texto) ||
+        (c.contrato || "").toLowerCase().includes(texto) ||
+        (c.contratista || "").toLowerCase().includes(texto)) &&
       (filtroEstado === "" || c.estado === filtroEstado)
     );
   });
@@ -93,7 +95,7 @@ export default function Dashboard() {
   // 🔥 MÉTRICAS
   const total = contratosFiltrados.length;
   const totalValor = contratosFiltrados.reduce(
-    (acc, c) => acc + c.valor,
+    (acc, c) => acc + (c.valor || 0),
     0
   );
 
@@ -110,8 +112,10 @@ export default function Dashboard() {
 
       <div className="flex-grow-1 bg-light">
 
+        {/* 🔥 AQUÍ VA LA ENTIDAD */}
         <Navbar
           fecha={fecha}
+          entidad={entidad}
           toggleSidebar={() => setSidebarVisible(!sidebarVisible)}
         />
 
@@ -197,14 +201,13 @@ export default function Dashboard() {
           {/* 🔹 TABLA */}
           <Table data={datosPaginados} />
 
-          {/* 🔥 PAGINACIÓN INTELIGENTE */}
+          {/* 🔥 PAGINACIÓN */}
           <div className="d-flex justify-content-center mt-4">
 
             <nav>
               <ul className="pagination">
 
-                {/* Anterior */}
-                <li className={`page-item ${paginaActual === 1 && "disabled"}`}>
+                <li className={`page-item ${paginaActual === 1 ? "disabled" : ""}`}>
                   <button
                     className="page-link"
                     onClick={() => setPaginaActual(paginaActual - 1)}
@@ -213,7 +216,6 @@ export default function Dashboard() {
                   </button>
                 </li>
 
-                {/* Números */}
                 {paginas.map((num, index) => (
                   <li
                     key={index}
@@ -232,10 +234,9 @@ export default function Dashboard() {
                   </li>
                 ))}
 
-                {/* Siguiente */}
                 <li
                   className={`page-item ${
-                    paginaActual === totalPaginas && "disabled"
+                    paginaActual === totalPaginas ? "disabled" : ""
                   }`}
                 >
                   <button

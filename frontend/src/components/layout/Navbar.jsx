@@ -1,6 +1,6 @@
-import { FaBars } from "react-icons/fa";
+import { FaBars, FaSignOutAlt } from "react-icons/fa";
 
-export default function Navbar({ fecha, toggleSidebar }) {
+export default function Navbar({ fecha, entidad, toggleSidebar, onLogout }) {
 
   const formatearFecha = (fecha) => {
     if (!fecha) return "Cargando...";
@@ -14,9 +14,10 @@ export default function Navbar({ fecha, toggleSidebar }) {
   };
 
   return (
-    <nav className="navbar bg-white shadow-sm px-3">
+    <nav className="navbar bg-white shadow-sm px-3 d-flex justify-content-between">
 
       <div className="d-flex align-items-center gap-3">
+
         <button
           className="btn btn-outline-secondary"
           onClick={toggleSidebar}
@@ -27,11 +28,37 @@ export default function Navbar({ fecha, toggleSidebar }) {
         <span className="navbar-brand mb-0 h5">
           Sistema de Análisis Contractual
         </span>
+
       </div>
 
-      <span className="text-muted">
-        Última actualización: {formatearFecha(fecha)}
-      </span>
+      <div className="d-flex align-items-center gap-4">
+
+        <div className="text-end">
+          <div className="text-muted" style={{ fontSize: "12px" }}>
+            Entidad
+          </div>
+          <div className="fw-bold text-success">
+            {entidad}
+          </div>
+        </div>
+
+        <div className="text-end">
+          <div className="text-muted" style={{ fontSize: "12px" }}>
+            Última actualización
+          </div>
+          <div className="fw-bold">
+            {formatearFecha(fecha)}
+          </div>
+        </div>
+
+        <button
+          className="btn btn-outline-danger"
+          onClick={onLogout}
+        >
+          <FaSignOutAlt />
+        </button>
+
+      </div>
     </nav>
   );
 }
