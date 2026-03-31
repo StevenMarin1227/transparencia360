@@ -6,20 +6,18 @@ export default function Login({ onLogin }) {
   const [entidad, setEntidad] = useState("");
 
   useEffect(() => {
+    const cargarEntidades = async () => {
+      try {
+        const res = await obtenerEntidades();
+        setEntidades(Array.isArray(res.data) ? res.data : []);
+      } catch (error) {
+        console.error("❌ Error cargando entidades:", error);
+        setEntidades([]);
+      }
+    };
+
     cargarEntidades();
   }, []);
-
-  const cargarEntidades = async () => {
-    try {
-      const res = await obtenerEntidades();
-
-      console.log("ENTIDADES BACKEND:", res.data); // 🔥 DEBUG
-
-      setEntidades(res.data || []);
-    } catch (error) {
-      console.error("ERROR CARGANDO ENTIDADES:", error);
-    }
-  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -34,8 +32,8 @@ export default function Login({ onLogin }) {
 
   return (
     <div className="d-flex justify-content-center align-items-center vh-100 bg-light">
-      <div className="card p-4 shadow" style={{ width: "350px" }}>
-        <h4 className="mb-3 text-center">Transparencia360</h4>
+      <div className="card p-4 shadow" style={{ width: "380px" }}>
+        <h2 className="text-center mb-4">Transparencia360</h2>
 
         <form onSubmit={handleSubmit}>
           <div className="mb-3">
@@ -48,19 +46,17 @@ export default function Login({ onLogin }) {
             >
               <option value="">-- Seleccionar --</option>
 
-              {entidades.length > 0 ? (
-                entidades.map((ent, i) => (
+              {entidades
+                .filter((e) => e && e.trim() !== "")
+                .map((ent, i) => (
                   <option key={i} value={ent}>
                     {ent}
                   </option>
-                ))
-              ) : (
-                <option disabled>Cargando entidades...</option>
-              )}
+                ))}
             </select>
           </div>
 
-          <button className="btn btn-success w-100">
+          <button type="submit" className="btn btn-success w-100">
             Ingresar
           </button>
         </form>

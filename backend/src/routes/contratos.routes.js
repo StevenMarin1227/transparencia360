@@ -1,25 +1,50 @@
 import express from "express";
-import { leerExcel } from "../services/excelProcessor.js";
+import { leerExcel, getFecha } from "../services/excelProcessor.js";
 
 const router = express.Router();
 
-router.get("/", (req, res) => {
-  const data = leerExcel();
+// 🔥 ENTIDADES
+router.get("/entidades", (req, res) => {
+  try {
+    const data = leerExcel();
 
-  res.json({
-    total: data.length,
-    data,
-  });
+    const entidades = [
+      ...new Set(
+        data
+          .map((item) => item.entidad)
+          .filter((e) => e && e.trim() !== "")
+      ),
+    ].sort((a, b) => a.localeCompare(b));
+
+    res.json(entidades);
+  } catch (error) {
+    res.status(500).json({ error: "Error obteniendo entidades" });
+  }
 });
 
-router.get("/entidades", (req, res) => {
-  const data = leerExcel();
+// 🔥 CONTRATOS
+router.get("/", (req, res) => {
+  try {
+    const { entidad } = req.query;
 
-  const entidades = [
-    ...new Set(data.map((item) => item.entidad)),
-  ].filter(Boolean);
+    let data = leerExcel();
 
-  res.json(entidades);
+    if (entidad) {
+      data = data.filter((c) =>
+        (c.entidad || "")
+          .toLowerCase()
+          .includes(entidad.toLowerCase())
+      );
+    }
+
+    res.json({
+      total: data.length,
+      fechaActualizacion: getFecha(),
+      data,
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Error obteniendo contratos" });
+  }
 });
 
 export default router;

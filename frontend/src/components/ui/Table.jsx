@@ -1,11 +1,12 @@
 export default function Table({ data }) {
+  console.log("DATA TABLE:", data); // 🔥 DEBUG
+
   return (
     <div className="card shadow-sm">
       <div className="card-body">
 
         <h5 className="mb-3">Listado de Contratos</h5>
 
-        {/* 🔥 SCROLL CONTROLADO */}
         <div
           className="table-responsive"
           style={{ maxHeight: "500px", overflowY: "auto" }}
@@ -19,6 +20,7 @@ export default function Table({ data }) {
                 <th>Contratista</th>
                 <th>Valor</th>
                 <th>Estado</th>
+                <th>Enlace</th>
               </tr>
             </thead>
 
@@ -28,8 +30,21 @@ export default function Table({ data }) {
                   <td>{item.entidad}</td>
                   <td>{item.contrato}</td>
                   <td>{item.contratista}</td>
-                  <td>${Number(item.valor).toLocaleString()}</td>
+                  <td>${Number(item.valor || 0).toLocaleString()}</td>
                   <td>{item.estado}</td>
+                  <td>
+                    {item.url ? (
+                      <a
+                        href={item.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Haga clic para ver enlace
+                      </a>
+                    ) : (
+                      "N/A"
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
