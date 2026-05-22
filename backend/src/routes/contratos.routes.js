@@ -1,49 +1,43 @@
 import express from "express";
-import { leerExcel, getFecha } from "../services/excelProcessor.js";
+import {
+  obtenerEntidadesAntioquia,
+  obtenerContratosPorEntidad,
+} from "../services/datosGovService.js";
 
 const router = express.Router();
 
-// 🔥 ENTIDADES
-router.get("/entidades", (req, res) => {
+router.get("/entidades", async (req, res) => {
   try {
-    const data = leerExcel();
-
-    const entidades = [
-      ...new Set(
-        data
-          .map((item) => item.entidad)
-          .filter((e) => e && e.trim() !== "")
-      ),
-    ].sort((a, b) => a.localeCompare(b));
-
+    const entidades = await obtenerEntidadesAntioquia();
     res.json(entidades);
   } catch (error) {
-    res.status(500).json({ error: "Error obteniendo entidades" });
+    console.error("Error en /entidades:", error.message);
+
+    res.status(500).json({
+      error: "Error obteniendo entidades",
+      detalle: error.message,
+    });
   }
 });
 
-// 🔥 CONTRATOS
-router.get("/", (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const { entidad } = req.query;
 
-    let data = leerExcel();
-
-    if (entidad) {
-      data = data.filter((c) =>
-        (c.entidad || "")
-          .toLowerCase()
-          .includes(entidad.toLowerCase())
-      );
-    }
+    const contratos = await obtenerContratosPorEntidad(entidad);
 
     res.json({
-      total: data.length,
-      fechaActualizacion: getFecha(),
-      data,
+      total: contratos.length,
+      fechaActualizacion: new Date(),
+      data: contratos,
     });
   } catch (error) {
-    res.status(500).json({ error: "Error obteniendo contratos" });
+    console.error("Error en /contratos:", error.message);
+
+    res.status(500).json({
+      error: "Error obteniendo contratos",
+      detalle: error.message,
+    });
   }
 });
 

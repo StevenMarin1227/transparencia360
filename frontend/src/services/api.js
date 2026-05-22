@@ -1,10 +1,20 @@
-import axios from "axios";
+const BASE_URL = "http://localhost:3001/api";
 
-const API = axios.create({
-  baseURL: "https://transparencia360.onrender.com/api",
-});
+const request = async (endpoint) => {
+  const response = await fetch(`${BASE_URL}${endpoint}`);
 
-export const obtenerEntidades = () => API.get("/contratos/entidades");
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText);
+  }
 
-export const obtenerContratos = (entidad) =>
-  API.get(`/contratos?entidad=${encodeURIComponent(entidad)}`);
+  return response.json();
+};
+
+export const obtenerEntidades = () => {
+  return request("/contratos/entidades");
+};
+
+export const obtenerContratos = (entidad) => {
+  return request(`/contratos?entidad=${encodeURIComponent(entidad)}`);
+};

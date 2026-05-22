@@ -1,265 +1,219 @@
 import { useEffect, useState } from "react";
-import Sidebar from "../components/layout/Sidebar";
-import Navbar from "../components/layout/Navbar";
-import Table from "../components/ui/Table";
 import { obtenerContratos } from "../services/api";
 
-export default function Dashboard({ entidad, onLogout }) {
+export default function Dashboard({ entidad, onBack }) {
   const [contratos, setContratos] = useState([]);
-  const [fecha, setFecha] = useState("");
   const [loading, setLoading] = useState(true);
 
-  const [sidebarVisible, setSidebarVisible] = useState(true);
-
-  const [filtroTexto, setFiltroTexto] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("");
+  const [filtroContratista, setFiltroContratista] = useState("");
+  const [filtroContrato, setFiltroContrato] = useState("");
 
-  const [paginaActual, setPaginaActual] = useState(1);
-  const registrosPorPagina = 10;
-
-  // 🔥 IMPORTANTE: depende de entidad
   useEffect(() => {
-    cargarDatos();
+    const cargarContratos = async () => {
+      try {
+        const response = await obtenerContratos(entidad);
+        setContratos(response.data || []);
+      } catch (error) {
+        console.error("Error cargando contratos:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    const intervalo = setInterval(() => {
-      cargarDatos();
-    }, 60000);
-
-    return () => clearInterval(intervalo);
+    cargarContratos();
   }, [entidad]);
 
-  const cargarDatos = async () => {
-    try {
-      setLoading(true);
+  const estadosUnicos = [
+    ...new Set(
+      contratos
+        .map((contrato) => contrato.estado)
+        .filter(Boolean)
+    ),
+  ].sort((a, b) => a.localeCompare(b));
 
-      const res = await obtenerContratos(entidad);
+  const contratosFiltrados = contratos.filter((contrato) => {
+    const estado = (contrato.estado || "").toLowerCase();
+    const contratista = (contrato.contratista || "").toLowerCase();
+    const numeroContrato = (contrato.contrato || "").toLowerCase();
 
-      console.log("RESPUESTA BACKEND:", res);
+    const coincideEstado =
+      !filtroEstado || estado === filtroEstado.toLowerCase();
 
-      setContratos(res.data?.data || []);
-      setFecha(res.data?.fechaActualizacion || null);
+    const coincideContratista =
+      !filtroContratista ||
+      contratista.includes(filtroContratista.toLowerCase());
 
-    } catch (error) {
-      console.error("❌ ERROR BACKEND:", error);
+    const coincideContrato =
+      !filtroContrato ||
+      numeroContrato.includes(filtroContrato.toLowerCase());
 
-      // 🔥 MUY IMPORTANTE
-      setContratos([]);
-    } finally {
-      // 🔥 SIEMPRE SE EJECUTA
-      setLoading(false);
-    }
-  };
-
-  // 🔥 FILTROS (más seguro)
-  const contratosFiltrados = contratos.filter((c) => {
-    const texto = filtroTexto.toLowerCase();
-
-    return (
-      ((c.entidad || "").toLowerCase().includes(texto) ||
-        (c.contrato || "").toLowerCase().includes(texto) ||
-        (c.contratista || "").toLowerCase().includes(texto)) &&
-      (filtroEstado === "" || c.estado === filtroEstado)
-    );
+    return coincideEstado && coincideContratista && coincideContrato;
   });
 
-  // 🔥 PAGINACIÓN
-  const totalPaginas = Math.ceil(
-    contratosFiltrados.length / registrosPorPagina
-  );
+  const totalContratos = contratosFiltrados.length;
 
-  const indiceInicio = (paginaActual - 1) * registrosPorPagina;
-
-  const datosPaginados = contratosFiltrados.slice(
-    indiceInicio,
-    indiceInicio + registrosPorPagina
-  );
-
-  // 🔥 PAGINACIÓN INTELIGENTE
-  const obtenerPaginasVisibles = () => {
-    const rango = 2;
-    let paginas = [];
-
-    const inicio = Math.max(1, paginaActual - rango);
-    const fin = Math.min(totalPaginas, paginaActual + rango);
-
-    if (inicio > 1) {
-      paginas.push(1);
-      if (inicio > 2) paginas.push("...");
-    }
-
-    for (let i = inicio; i <= fin; i++) {
-      paginas.push(i);
-    }
-
-    if (fin < totalPaginas) {
-      if (fin < totalPaginas - 1) paginas.push("...");
-      paginas.push(totalPaginas);
-    }
-
-    return paginas;
-  };
-
-  const paginas = obtenerPaginasVisibles();
-
-  // 🔥 MÉTRICAS
-  const total = contratosFiltrados.length;
-  const totalValor = contratosFiltrados.reduce(
-    (acc, c) => acc + (c.valor || 0),
+  const valorTotal = contratosFiltrados.reduce(
+    (total, contrato) => total + Number(contrato.valor || 0),
     0
   );
 
-  const estadosUnicos = [
-    ...new Set(contratos.map((c) => c.estado)),
-  ];
+  const limpiarFiltros = () => {
+    setFiltroEstado("");
+    setFiltroContratista("");
+    setFiltroContrato("");
+  };
 
-  if (loading) return <div className="p-5">Cargando...</div>;
+  if (loading) {
+    return (
+      <div className="container py-5 text-center">
+        <h5>Cargando información contractual...</h5>
+      </div>
+    );
+  }
 
   return (
-    <div className="d-flex">
+    <div className="container-fluid py-4">
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h2 className="fw-bold mb-0">Transparencia360</h2>
+          <p className="text-muted mb-0">Visor Contractual</p>
+        </div>
 
-      {sidebarVisible && <Sidebar />}
+        <button className="btn btn-outline-secondary" onClick={onBack}>
+          Cambiar entidad
+        </button>
+      </div>
 
-      <div className="flex-grow-1 bg-light">
+      <div className="alert alert-success">
+        <strong>Entidad seleccionada:</strong> {entidad}
+      </div>
 
-        {/*AQUÍ VA LA ENTIDAD */}
-        <Navbar
-          fecha={fecha}
-          entidad={entidad}
-          onLogout={onLogout}
-          toggleSidebar={() => setSidebarVisible(!sidebarVisible)}
-        />
-
-        <div className="container mt-4">
-
-          {/* 🔹 CARDS */}
-          <div className="row mb-4">
-
-            <div className="col-md-3 mb-3">
-              <div className="card shadow-sm h-100">
-                <div className="card-body">
-                  <h6>Total Contratos</h6>
-                  <h4>{total}</h4>
-                </div>
-              </div>
-            </div>
-
-            <div className="col-md-3 mb-3">
-              <div className="card shadow-sm h-100">
-                <div className="card-body">
-                  <h6>Valor Total</h6>
-                  <h4>${totalValor.toLocaleString()}</h4>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          {/* 🔹 FILTROS */}
-          <div className="card mb-4 shadow-sm">
+      <div className="row mb-4">
+        <div className="col-md-3 mb-3">
+          <div className="card shadow-sm h-100">
             <div className="card-body">
-
-              <div className="row">
-
-                <div className="col-md-6">
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="Buscar..."
-                    value={filtroTexto}
-                    onChange={(e) => {
-                      setFiltroTexto(e.target.value);
-                      setPaginaActual(1);
-                    }}
-                  />
-                </div>
-
-                <div className="col-md-3">
-                  <select
-                    className="form-select"
-                    value={filtroEstado}
-                    onChange={(e) => {
-                      setFiltroEstado(e.target.value);
-                      setPaginaActual(1);
-                    }}
-                  >
-                    <option value="">Todos</option>
-
-                    {estadosUnicos.map((estado, i) => (
-                      <option key={i}>{estado}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="col-md-3">
-                  <button
-                    className="btn btn-secondary w-100"
-                    onClick={() => {
-                      setFiltroTexto("");
-                      setFiltroEstado("");
-                      setPaginaActual(1);
-                    }}
-                  >
-                    Limpiar
-                  </button>
-                </div>
-
-              </div>
-
+              <h6 className="text-muted">Total contratos</h6>
+              <h3>{totalContratos}</h3>
             </div>
           </div>
+        </div>
 
-          {/* 🔹 TABLA */}
-          <Table data={datosPaginados} />
+        <div className="col-md-4 mb-3">
+          <div className="card shadow-sm h-100">
+            <div className="card-body">
+              <h6 className="text-muted">Valor total contratado</h6>
+              <h3>${valorTotal.toLocaleString("es-CO")}</h3>
+            </div>
+          </div>
+        </div>
+      </div>
 
-          {/* 🔥 PAGINACIÓN */}
-          <div className="d-flex justify-content-center mt-4">
+      <div className="card shadow-sm mb-4">
+        <div className="card-body">
+          <h5 className="mb-3">Filtros de consulta</h5>
 
-            <nav>
-              <ul className="pagination">
+          <div className="row g-3">
+            <div className="col-md-3">
+              <label className="form-label">Estado</label>
+              <select
+                className="form-select"
+                value={filtroEstado}
+                onChange={(e) => setFiltroEstado(e.target.value)}
+              >
+                <option value="">Todos</option>
 
-                <li className={`page-item ${paginaActual === 1 ? "disabled" : ""}`}>
-                  <button
-                    className="page-link"
-                    onClick={() => setPaginaActual(paginaActual - 1)}
-                  >
-                    «
-                  </button>
-                </li>
-
-                {paginas.map((num, index) => (
-                  <li
-                    key={index}
-                    className={`page-item ${paginaActual === num ? "active" : ""
-                      } ${num === "..." ? "disabled" : ""}`}
-                  >
-                    <button
-                      className="page-link"
-                      onClick={() => {
-                        if (num !== "...") setPaginaActual(num);
-                      }}
-                    >
-                      {num}
-                    </button>
-                  </li>
+                {estadosUnicos.map((estado, index) => (
+                  <option key={index} value={estado}>
+                    {estado}
+                  </option>
                 ))}
+              </select>
+            </div>
 
-                <li
-                  className={`page-item ${paginaActual === totalPaginas ? "disabled" : ""
-                    }`}
-                >
-                  <button
-                    className="page-link"
-                    onClick={() => setPaginaActual(paginaActual + 1)}
-                  >
-                    »
-                  </button>
-                </li>
+            <div className="col-md-4">
+              <label className="form-label">Contratista</label>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Buscar por contratista"
+                value={filtroContratista}
+                onChange={(e) => setFiltroContratista(e.target.value)}
+              />
+            </div>
 
-              </ul>
-            </nav>
+            <div className="col-md-3">
+              <label className="form-label">Número de contrato</label>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Buscar contrato"
+                value={filtroContrato}
+                onChange={(e) => setFiltroContrato(e.target.value)}
+              />
+            </div>
 
+            <div className="col-md-2 d-flex align-items-end">
+              <button
+                className="btn btn-secondary w-100"
+                onClick={limpiarFiltros}
+              >
+                Limpiar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="card shadow-sm">
+        <div className="card-body">
+          <h5 className="mb-3">Listado de contratos</h5>
+
+          <div className="table-responsive">
+            <table className="table table-striped table-hover align-middle">
+              <thead className="table-dark">
+                <tr>
+                  <th>Contrato</th>
+                  <th>Contratista</th>
+                  <th>Documento</th>
+                  <th>Valor</th>
+                  <th>Estado</th>
+                  <th>SECOP</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {contratosFiltrados.map((item, index) => (
+                  <tr key={index}>
+                    <td>{item.contrato}</td>
+                    <td>{item.contratista}</td>
+                    <td>{item.documentoContratista}</td>
+                    <td>${Number(item.valor || 0).toLocaleString("es-CO")}</td>
+                    <td>{item.estado}</td>
+                    <td>
+                      {item.url ? (
+                        <a
+                          href={item.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Haga clic para ver enlace
+                        </a>
+                      ) : (
+                        "N/A"
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
 
+          {contratosFiltrados.length === 0 && (
+            <div className="alert alert-warning mt-3">
+              No se encontraron contratos con los filtros seleccionados.
+            </div>
+          )}
         </div>
       </div>
     </div>
