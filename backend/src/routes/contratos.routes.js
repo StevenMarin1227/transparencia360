@@ -2,6 +2,7 @@ import express from "express";
 import {
   obtenerContratosPorEntidad,
   obtenerEntidadesAntioquia,
+  obtenerSeguimientoLiquidacion,
 } from "../services/datosGovService.js";
 
 const router = express.Router();
@@ -24,7 +25,7 @@ router.get("/entidades", async (req, res) => {
     const entidades =
       await obtenerEntidadesAntioquia();
 
-    res.status(200).json({
+    return res.status(200).json({
       total: entidades.length,
       fechaConsulta: new Date().toISOString(),
       data: entidades,
@@ -35,12 +36,100 @@ router.get("/entidades", async (req, res) => {
       error.message
     );
 
-    res.status(500).json({
+    return res.status(500).json({
       error: "No fue posible consultar las entidades",
       detalle: error.message,
     });
   }
 });
+
+/*
+ * Debe declararse antes de la ruta "/".
+ */
+router.get(
+  "/seguimiento-liquidacion",
+  async (req, res) => {
+    try {
+      desactivarCache(res);
+
+      const entidad = String(
+        req.query.entidad || ""
+      ).trim();
+
+      if (!entidad) {
+        return res.status(400).json({
+          error: "Debe indicar una entidad",
+        });
+      }
+
+      const contratos =
+        await obtenerSeguimientoLiquidacion(entidad);
+
+      const resumen = contratos.reduce(
+        (acumulado, contrato) => {
+          acumulado.total += 1;
+
+          if (contrato.nivelAlerta === "VERDE") {
+            acumulado.verde += 1;
+          }
+
+          if (contrato.nivelAlerta === "AMARILLO") {
+            acumulado.amarillo += 1;
+          }
+
+          if (contrato.nivelAlerta === "NARANJA") {
+            acumulado.naranja += 1;
+          }
+
+          if (contrato.nivelAlerta === "ROJO") {
+            acumulado.rojo += 1;
+          }
+
+          return acumulado;
+        },
+        {
+          total: 0,
+          verde: 0,
+          amarillo: 0,
+          naranja: 0,
+          rojo: 0,
+        }
+      );
+
+      const primerContrato = contratos[0] || null;
+
+      const entidadInfo = {
+        nombre:
+          primerContrato?.entidad || entidad,
+        nit:
+          primerContrato?.nitEntidad || "No disponible",
+        departamento:
+          primerContrato?.departamento ||
+          process.env.DEPARTAMENTO ||
+          "No disponible",
+      };
+
+      return res.status(200).json({
+        entidad,
+        entidadInfo,
+        fechaConsulta: new Date().toISOString(),
+        resumen,
+        data: contratos,
+      });
+    } catch (error) {
+      console.error(
+        "Error en seguimiento de liquidación:",
+        error.message
+      );
+
+      return res.status(500).json({
+        error:
+          "No fue posible consultar el seguimiento de liquidación",
+        detalle: error.message,
+      });
+    }
+  }
+);
 
 router.get("/", async (req, res) => {
   try {
@@ -62,11 +151,7 @@ router.get("/", async (req, res) => {
     return res.status(200).json({
       entidad,
       total: contratos.length,
-
-      // Esta fecha permite verificar que el backend
-      // hizo una nueva consulta.
       fechaConsulta: new Date().toISOString(),
-
       data: contratos,
     });
   } catch (error) {

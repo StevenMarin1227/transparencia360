@@ -3,25 +3,19 @@ const BASE_URL = import.meta.env.VITE_API_URL;
 const request = async (endpoint) => {
   if (!BASE_URL) {
     throw new Error(
-      "No está configurada la variable VITE_API_URL"
+      "No está configurada la variable de entorno VITE_API_URL"
     );
   }
 
-  const response = await fetch(
-    `${BASE_URL}${endpoint}`,
-    {
-      method: "GET",
-
-      // No reutilizar respuestas guardadas por el navegador.
-      cache: "no-store",
-
-      headers: {
-        Accept: "application/json",
-        "Cache-Control": "no-cache",
-        Pragma: "no-cache",
-      },
-    }
-  );
+  const response = await fetch(`${BASE_URL}${endpoint}`, {
+    method: "GET",
+    cache: "no-store",
+    headers: {
+      Accept: "application/json",
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
+    },
+  });
 
   if (!response.ok) {
     const detalle = await response.text();
@@ -35,9 +29,7 @@ const request = async (endpoint) => {
 };
 
 export const obtenerEntidades = async () => {
-  const respuesta = await request(
-    "/contratos/entidades"
-  );
+  const respuesta = await request("/contratos/entidades");
 
   return respuesta.data || [];
 };
@@ -45,5 +37,13 @@ export const obtenerEntidades = async () => {
 export const obtenerContratos = async (entidad) => {
   return request(
     `/contratos?entidad=${encodeURIComponent(entidad)}`
+  );
+};
+
+export const obtenerControlLiquidacion = async (entidad) => {
+  return request(
+    `/contratos/seguimiento-liquidacion?entidad=${encodeURIComponent(
+      entidad
+    )}`
   );
 };
