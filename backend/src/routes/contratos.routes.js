@@ -1,20 +1,42 @@
 import express from "express";
 import {
-  obtenerEntidadesAntioquia,
   obtenerContratosPorEntidad,
+  obtenerEntidadesAntioquia,
 } from "../services/datosGovService.js";
 
 const router = express.Router();
 
+const desactivarCache = (res) => {
+  res.set({
+    "Cache-Control":
+      "no-store, no-cache, must-revalidate, proxy-revalidate",
+    "CDN-Cache-Control": "no-store",
+    Pragma: "no-cache",
+    Expires: "0",
+    "Surrogate-Control": "no-store",
+  });
+};
+
 router.get("/entidades", async (req, res) => {
   try {
-    const entidades = await obtenerEntidadesAntioquia();
-    res.json(entidades);
+    desactivarCache(res);
+
+    const entidades =
+      await obtenerEntidadesAntioquia();
+
+    res.status(200).json({
+      total: entidades.length,
+      fechaConsulta: new Date().toISOString(),
+      data: entidades,
+    });
   } catch (error) {
-    console.error("Error en /entidades:", error.message);
+    console.error(
+      "Error consultando entidades:",
+      error.message
+    );
 
     res.status(500).json({
-      error: "Error obteniendo entidades",
+      error: "No fue posible consultar las entidades",
       detalle: error.message,
     });
   }
@@ -22,20 +44,40 @@ router.get("/entidades", async (req, res) => {
 
 router.get("/", async (req, res) => {
   try {
-    const { entidad } = req.query;
+    desactivarCache(res);
 
-    const contratos = await obtenerContratosPorEntidad(entidad);
+    const entidad = String(
+      req.query.entidad || ""
+    ).trim();
 
-    res.json({
+    if (!entidad) {
+      return res.status(400).json({
+        error: "Debe indicar una entidad",
+      });
+    }
+
+    const contratos =
+      await obtenerContratosPorEntidad(entidad);
+
+    return res.status(200).json({
+      entidad,
       total: contratos.length,
-      fechaActualizacion: new Date(),
+
+      // Esta fecha permite verificar que el backend
+      // hizo una nueva consulta.
+      fechaConsulta: new Date().toISOString(),
+
       data: contratos,
     });
   } catch (error) {
-    console.error("Error en /contratos:", error.message);
+    console.error(
+      "Error consultando contratos:",
+      error.message
+    );
 
-    res.status(500).json({
-      error: "Error obteniendo contratos",
+    return res.status(500).json({
+      error:
+        "No fue posible consultar la información contractual",
       detalle: error.message,
     });
   }
