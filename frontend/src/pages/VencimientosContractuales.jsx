@@ -1,22 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  FaArrowRight,
+  FaArrowLeft,
   FaArrowUpRightFromSquare,
   FaClock,
   FaFilter,
   FaRotateLeft,
+  FaTriangleExclamation,
 } from "react-icons/fa6";
-
-import { obtenerContratos } from "../services/api";
+import { obtenerVencimientosContractuales } from "../services/api";
 
 const REGISTROS_POR_PAGINA = 10;
 
-const formatearMoneda = (valor) => {
-  return Number(valor || 0).toLocaleString("es-CO", {
-    style: "currency",
-    currency: "COP",
-    maximumFractionDigits: 0,
-  });
+const RESUMEN_INICIAL = {
+  total: 0,
+  rojo: 0,
+  naranja: 0,
+  amarillo: 0,
 };
 
 const formatearFecha = (fecha) => {
@@ -37,31 +36,68 @@ const formatearFecha = (fecha) => {
   });
 };
 
-export default function Dashboard({
+const obtenerClaseSemaforo = (nivel) => {
+  const clases = {
+    ROJO: "bg-danger text-white",
+    NARANJA: "bg-orange text-white",
+    AMARILLO: "bg-warning text-dark",
+  };
+
+  return clases[nivel] || "bg-secondary text-white";
+};
+
+const obtenerClaseTarjeta = (nivel) => {
+  const clases = {
+    ROJO: "border-danger",
+    NARANJA: "border-orange",
+    AMARILLO: "border-warning",
+  };
+
+  return clases[nivel] || "border-secondary";
+};
+
+const obtenerTextoDias = (dias) => {
+  const valor = Number(dias);
+
+  if (valor === 0) {
+    return "Termina hoy";
+  }
+
+  if (valor === 1) {
+    return "1 día";
+  }
+
+  return `${valor} días`;
+};
+
+export default function VencimientosContractuales({
   entidad,
   onBack,
-  onOpenControlLiquidacion,
-  onOpenVencimientosContractuales,
 }) {
   const [contratos, setContratos] = useState([]);
+  const [resumen, setResumen] = useState(RESUMEN_INICIAL);
   const [fechaConsulta, setFechaConsulta] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const [filtroNivel, setFiltroNivel] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("");
-  const [filtroContratista, setFiltroContratista] = useState("");
+  const [filtroContratista, setFiltroContratista] =
+    useState("");
   const [filtroContrato, setFiltroContrato] = useState("");
+  const [filtroObjeto, setFiltroObjeto] = useState("");
 
   const [paginaActual, setPaginaActual] = useState(1);
 
   useEffect(() => {
-    const cargarContratos = async () => {
+    const cargarVencimientos = async () => {
       try {
         setLoading(true);
         setError("");
 
-        const respuesta = await obtenerContratos(entidad);
+        const respuesta =
+          await obtenerVencimientosContractuales(entidad);
 
         setContratos(
           Array.isArray(respuesta.data)
@@ -69,24 +105,26 @@ export default function Dashboard({
             : []
         );
 
+        setResumen(respuesta.resumen || RESUMEN_INICIAL);
         setFechaConsulta(respuesta.fechaConsulta || "");
       } catch (errorCarga) {
         console.error(
-          "Error cargando contratos:",
+          "Error cargando vencimientos contractuales:",
           errorCarga
         );
 
         setError(
-          "No fue posible cargar la información contractual."
+          "No fue posible cargar los contratos próximos a vencer."
         );
 
         setContratos([]);
+        setResumen(RESUMEN_INICIAL);
       } finally {
         setLoading(false);
       }
     };
 
-    cargarContratos();
+    cargarVencimientos();
   }, [entidad]);
 
   const estadosUnicos = useMemo(() => {
@@ -108,7 +146,15 @@ export default function Dashboard({
       .trim()
       .toLowerCase();
 
+    const textoObjeto = filtroObjeto
+      .trim()
+      .toLowerCase();
+
     return contratos.filter((contrato) => {
+      const coincideNivel =
+        !filtroNivel ||
+        contrato.nivelAlerta === filtroNivel;
+
       const coincideEstado =
         !filtroEstado ||
         contrato.estado === filtroEstado;
@@ -128,28 +174,28 @@ export default function Dashboard({
           .toLowerCase()
           .includes(textoContrato);
 
+      const coincideObjeto =
+        !textoObjeto ||
+        String(contrato.objeto || "")
+          .toLowerCase()
+          .includes(textoObjeto);
+
       return (
+        coincideNivel &&
         coincideEstado &&
         coincideContratista &&
-        coincideContrato
+        coincideContrato &&
+        coincideObjeto
       );
     });
   }, [
     contratos,
+    filtroNivel,
     filtroEstado,
     filtroContratista,
     filtroContrato,
+    filtroObjeto,
   ]);
-
-  const totalContratos = contratosFiltrados.length;
-
-  const valorTotal = useMemo(() => {
-    return contratosFiltrados.reduce(
-      (acumulado, contrato) =>
-        acumulado + Number(contrato.valor || 0),
-      0
-    );
-  }, [contratosFiltrados]);
 
   const totalPaginas = Math.max(
     1,
@@ -167,9 +213,11 @@ export default function Dashboard({
   );
 
   const limpiarFiltros = () => {
+    setFiltroNivel("");
     setFiltroEstado("");
     setFiltroContratista("");
     setFiltroContrato("");
+    setFiltroObjeto("");
     setPaginaActual(1);
   };
 
@@ -184,10 +232,7 @@ export default function Dashboard({
   const paginasVisibles = useMemo(() => {
     const paginas = [];
     const inicio = Math.max(1, paginaActual - 2);
-    const fin = Math.min(
-      totalPaginas,
-      paginaActual + 2
-    );
+    const fin = Math.min(totalPaginas, paginaActual + 2);
 
     if (inicio > 1) {
       paginas.push(1);
@@ -229,7 +274,7 @@ export default function Dashboard({
         </div>
 
         <p className="mt-3 mb-0">
-          Consultando información contractual...
+          Consultando contratos próximos a vencer...
         </p>
       </div>
     );
@@ -240,48 +285,29 @@ export default function Dashboard({
       <div className="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
         <div>
           <h2 className="fw-bold mb-1">
-            Transparencia360
+            Vencimientos Contractuales
           </h2>
 
           <p className="text-muted mb-0">
-            Visor Contractual
+            Seguimiento preventivo a contratos que terminan
+            dentro de los próximos 15 días.
           </p>
         </div>
 
-        <div className="d-flex flex-column flex-sm-row gap-2">
-          <button
-            type="button"
-            className="btn btn-warning"
-            onClick={onOpenVencimientosContractuales}
-          >
-            <FaClock className="me-2" />
-            Vencimientos Contractuales
-          </button>
-
-          <button
-            type="button"
-            className="btn btn-success"
-            onClick={onOpenControlLiquidacion}
-          >
-            Control de Liquidación
-            <FaArrowRight className="ms-2" />
-          </button>
-
-          <button
-            type="button"
-            className="btn btn-outline-secondary"
-            onClick={onBack}
-          >
-            Cambiar entidad
-          </button>
-        </div>
+        <button
+          type="button"
+          className="btn btn-outline-secondary"
+          onClick={onBack}
+        >
+          <FaArrowLeft className="me-2" />
+          Volver al visor contractual
+        </button>
       </div>
 
       <div className="alert alert-light border shadow-sm">
         <div className="row g-2">
           <div className="col-md-8">
-            <strong>Entidad seleccionada:</strong>{" "}
-            {entidad}
+            <strong>Entidad:</strong> {entidad}
           </div>
 
           <div className="col-md-4 text-md-end">
@@ -291,6 +317,14 @@ export default function Dashboard({
         </div>
       </div>
 
+      <div className="alert alert-info" role="alert">
+        <FaClock className="me-2" />
+        Este módulo identifica contratos registrados en estado
+        En ejecución o Modificado cuya fecha de terminación
+        está comprendida entre la fecha actual y los próximos
+        15 días.
+      </div>
+
       {error && (
         <div className="alert alert-danger">
           {error}
@@ -298,30 +332,82 @@ export default function Dashboard({
       )}
 
       <div className="row g-3 mb-4">
-        <div className="col-md-4">
-          <div className="card shadow-sm h-100">
+        <div className="col-sm-6 col-xl-3">
+          <div className="card shadow-sm h-100 border-secondary">
             <div className="card-body">
               <p className="text-muted mb-1">
-                Total de contratos
+                Total próximos a vencer
               </p>
 
               <h3 className="mb-0">
-                {totalContratos}
+                {resumen.total}
               </h3>
             </div>
           </div>
         </div>
 
-        <div className="col-md-5">
-          <div className="card shadow-sm h-100">
+        <div className="col-sm-6 col-xl-3">
+          <div
+            className={`card shadow-sm h-100 ${obtenerClaseTarjeta(
+              "ROJO"
+            )}`}
+          >
             <div className="card-body">
               <p className="text-muted mb-1">
-                Valor total contratado
+                Entre 0 y 3 días
               </p>
 
               <h3 className="mb-0">
-                {formatearMoneda(valorTotal)}
+                {resumen.rojo}
               </h3>
+
+              <small className="text-danger">
+                Vencimiento inminente
+              </small>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-sm-6 col-xl-3">
+          <div
+            className={`card shadow-sm h-100 ${obtenerClaseTarjeta(
+              "NARANJA"
+            )}`}
+          >
+            <div className="card-body">
+              <p className="text-muted mb-1">
+                Entre 4 y 8 días
+              </p>
+
+              <h3 className="mb-0">
+                {resumen.naranja}
+              </h3>
+
+              <small className="text-orange">
+                Atención prioritaria
+              </small>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-sm-6 col-xl-3">
+          <div
+            className={`card shadow-sm h-100 ${obtenerClaseTarjeta(
+              "AMARILLO"
+            )}`}
+          >
+            <div className="card-body">
+              <p className="text-muted mb-1">
+                Entre 9 y 15 días
+              </p>
+
+              <h3 className="mb-0">
+                {resumen.amarillo}
+              </h3>
+
+              <small className="text-warning-emphasis">
+                Seguimiento preventivo
+              </small>
             </div>
           </div>
         </div>
@@ -337,6 +423,34 @@ export default function Dashboard({
           </div>
 
           <div className="row g-3">
+            <div className="col-md-3">
+              <label className="form-label">
+                Nivel de alerta
+              </label>
+
+              <select
+                className="form-select"
+                value={filtroNivel}
+                onChange={(event) => {
+                  setFiltroNivel(event.target.value);
+                  setPaginaActual(1);
+                }}
+              >
+                <option value="">
+                  Todos los niveles
+                </option>
+                <option value="ROJO">
+                  Rojo — 0 a 3 días
+                </option>
+                <option value="NARANJA">
+                  Naranja — 4 a 8 días
+                </option>
+                <option value="AMARILLO">
+                  Amarillo — 9 a 15 días
+                </option>
+              </select>
+            </div>
+
             <div className="col-md-3">
               <label className="form-label">
                 Estado contractual
@@ -355,17 +469,14 @@ export default function Dashboard({
                 </option>
 
                 {estadosUnicos.map((estado) => (
-                  <option
-                    key={estado}
-                    value={estado}
-                  >
+                  <option key={estado} value={estado}>
                     {estado}
                   </option>
                 ))}
               </select>
             </div>
 
-            <div className="col-md-4">
+            <div className="col-md-3">
               <label className="form-label">
                 Contratista o documento
               </label>
@@ -392,12 +503,27 @@ export default function Dashboard({
               <input
                 type="text"
                 className="form-control"
-                placeholder="Referencia del contrato"
+                placeholder="Referencia contractual"
                 value={filtroContrato}
                 onChange={(event) => {
-                  setFiltroContrato(
-                    event.target.value
-                  );
+                  setFiltroContrato(event.target.value);
+                  setPaginaActual(1);
+                }}
+              />
+            </div>
+
+            <div className="col-md-10">
+              <label className="form-label">
+                Objeto contractual
+              </label>
+
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Buscar palabras contenidas en el objeto"
+                value={filtroObjeto}
+                onChange={(event) => {
+                  setFiltroObjeto(event.target.value);
                   setPaginaActual(1);
                 }}
               />
@@ -420,9 +546,15 @@ export default function Dashboard({
       <div className="card shadow-sm">
         <div className="card-body">
           <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
-            <h5 className="mb-0">
-              Listado de contratos
-            </h5>
+            <div>
+              <h5 className="mb-1">
+                Contratos próximos a vencer
+              </h5>
+
+              <small className="text-muted">
+                Ordenados desde el vencimiento más próximo.
+              </small>
+            </div>
 
             <span className="text-muted">
               {contratosFiltrados.length} registros
@@ -430,14 +562,19 @@ export default function Dashboard({
           </div>
 
           <div className="table-responsive">
-            <table className="table table-striped table-hover align-middle">
+            <table className="table table-hover align-middle">
               <thead className="table-dark">
                 <tr>
                   <th>Contrato</th>
-                  <th>Contratista</th>
-                  <th>Documento</th>
-                  <th>Valor</th>
+                  <th style={{ minWidth: "300px" }}>
+                    Objeto
+                  </th>
+                  <th>Fecha de inicio</th>
+                  <th>Fecha de terminación</th>
+                  <th>Días restantes</th>
+                  <th>Alerta</th>
                   <th>Estado</th>
+                  <th>Contratista</th>
                   <th>SECOP</th>
                 </tr>
               </thead>
@@ -448,23 +585,73 @@ export default function Dashboard({
                     <tr
                       key={`${contrato.contrato}-${index}`}
                     >
-                      <td>{contrato.contrato}</td>
-
-                      <td>
-                        {contrato.contratista}
+                      <td className="fw-semibold">
+                        {contrato.contrato}
                       </td>
 
                       <td>
-                        {contrato.documentoContratista}
+                        <div
+                          style={{
+                            minWidth: "280px",
+                            whiteSpace: "normal",
+                          }}
+                        >
+                          {contrato.objeto}
+                        </div>
                       </td>
 
                       <td>
-                        {formatearMoneda(
-                          contrato.valor
+                        {formatearFecha(
+                          contrato.fechaInicio
                         )}
                       </td>
 
+                      <td className="fw-semibold">
+                        {formatearFecha(
+                          contrato.fechaTerminacion
+                        )}
+                      </td>
+
+                      <td className="text-center">
+                        <span
+                          className={
+                            contrato.diasRestantes <= 3
+                              ? "fw-bold text-danger"
+                              : contrato.diasRestantes <= 8
+                                ? "fw-bold text-orange"
+                                : "fw-semibold"
+                          }
+                        >
+                          {obtenerTextoDias(
+                            contrato.diasRestantes
+                          )}
+                        </span>
+                      </td>
+
+                      <td>
+                        <span
+                          className={`badge ${obtenerClaseSemaforo(
+                            contrato.nivelAlerta
+                          )}`}
+                          title={
+                            contrato.descripcionAlerta
+                          }
+                        >
+                          {contrato.nivelAlerta}
+                        </span>
+                      </td>
+
                       <td>{contrato.estado}</td>
+
+                      <td>
+                        <div className="fw-semibold">
+                          {contrato.contratista}
+                        </div>
+
+                        <small className="text-muted">
+                          {contrato.documentoContratista}
+                        </small>
+                      </td>
 
                       <td>
                         {contrato.url ? (
@@ -474,7 +661,7 @@ export default function Dashboard({
                             rel="noopener noreferrer"
                             className="text-decoration-none"
                           >
-                            Haga clic para ver enlace
+                            Consultar
                             <FaArrowUpRightFromSquare
                               className="ms-1"
                               size={12}
@@ -495,15 +682,16 @@ export default function Dashboard({
 
           {contratosFiltrados.length === 0 && (
             <div className="alert alert-info mb-0">
-              No se encontraron contratos con los
-              filtros seleccionados.
+              <FaTriangleExclamation className="me-2" />
+              No se encontraron contratos próximos a vencer
+              con los filtros seleccionados.
             </div>
           )}
 
           {contratosFiltrados.length > 0 && (
             <nav
               className="d-flex justify-content-center mt-4"
-              aria-label="Paginación de contratos"
+              aria-label="Paginación de vencimientos"
             >
               <ul className="pagination mb-0">
                 <li
@@ -517,9 +705,7 @@ export default function Dashboard({
                     type="button"
                     className="page-link"
                     onClick={() =>
-                      cambiarPagina(
-                        paginaActual - 1
-                      )
+                      cambiarPagina(paginaActual - 1)
                     }
                   >
                     Anterior
@@ -576,9 +762,7 @@ export default function Dashboard({
                     type="button"
                     className="page-link"
                     onClick={() =>
-                      cambiarPagina(
-                        paginaActual + 1
-                      )
+                      cambiarPagina(paginaActual + 1)
                     }
                   >
                     Siguiente

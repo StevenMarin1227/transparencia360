@@ -3,6 +3,7 @@ import AppLayout from "./components/AppLayout";
 import EntitySelect from "./pages/EntitySelect";
 import Dashboard from "./pages/Dashboard";
 import ControlLiquidacion from "./pages/ControlLiquidacion";
+import VencimientosContractuales from "./pages/VencimientosContractuales";
 
 function App() {
   const [entidad, setEntidad] = useState("");
@@ -27,11 +28,26 @@ function App() {
         onSelectEntity={seleccionarEntidad}
       />
     );
-  } else if (moduloActivo === "control-liquidacion") {
+  } else if (
+    moduloActivo === "control-liquidacion"
+  ) {
     contenido = (
       <ControlLiquidacion
         entidad={entidad}
-        onBack={() => setModuloActivo("dashboard")}
+        onBack={() =>
+          setModuloActivo("dashboard")
+        }
+      />
+    );
+  } else if (
+    moduloActivo === "vencimientos-contractuales"
+  ) {
+    contenido = (
+      <VencimientosContractuales
+        entidad={entidad}
+        onBack={() =>
+          setModuloActivo("dashboard")
+        }
       />
     );
   } else {
@@ -42,15 +58,16 @@ function App() {
         onOpenControlLiquidacion={() =>
           setModuloActivo("control-liquidacion")
         }
+        onOpenVencimientosContractuales={() =>
+          setModuloActivo(
+            "vencimientos-contractuales"
+          )
+        }
       />
     );
   }
 
-  return (
-    <AppLayout>
-      {contenido}
-    </AppLayout>
-  );
+  return <AppLayout>{contenido}</AppLayout>;
 }
 
 export default App;

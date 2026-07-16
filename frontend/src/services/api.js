@@ -47,3 +47,13 @@ export const obtenerControlLiquidacion = async (entidad) => {
     )}`
   );
 };
+
+export const obtenerVencimientosContractuales = async (
+  entidad
+) => {
+  return request(
+    `/contratos/vencimientos?entidad=${encodeURIComponent(
+      entidad
+    )}`
+  );
+};

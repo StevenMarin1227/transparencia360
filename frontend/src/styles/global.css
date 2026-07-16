@@ -78,3 +78,16 @@ body {
 .footer-link:hover {
   text-decoration: underline;
 }
+
+/*Estilos módulo Vencimientos contracutales*/
+.bg-orange {
+  background-color: #fd7e14 !important;
+}
+
+.border-orange {
+  border-color: #fd7e14 !important;
+}
+
+.text-orange {
+  color: #fd7e14 !important;
+}
